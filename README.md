@@ -30,11 +30,78 @@ virtual_keys:
 
 Each virtual key is a credential that a Claude Code instance uses to authenticate with the gateway.
 
-### 3. Build and run
+### 3. Run
+
+**From source:**
 
 ```bash
 go build -o maxmux .
 ./maxmux -config config.yaml
+```
+
+**Docker:**
+
+```bash
+docker run -d \
+  -p 4000:4000 \
+  -v $(pwd)/config.yaml:/config.yaml \
+  gustavosbarreto/maxmux -config /config.yaml
+```
+
+**Kubernetes:**
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: maxmux
+stringData:
+  config.yaml: |
+    port: 4000
+    upstream: https://api.anthropic.com
+    oauth_token: sk-ant-oat01-YOUR-TOKEN-HERE
+    virtual_keys:
+      - sk-proxy-key-1
+      - sk-proxy-key-2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maxmux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: maxmux
+  template:
+    metadata:
+      labels:
+        app: maxmux
+    spec:
+      containers:
+        - name: maxmux
+          image: gustavosbarreto/maxmux:latest
+          args: ["-config", "/config/config.yaml"]
+          ports:
+            - containerPort: 4000
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          secret:
+            secretName: maxmux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maxmux
+spec:
+  selector:
+    app: maxmux
+  ports:
+    - port: 4000
+      targetPort: 4000
 ```
 
 ### 4. Connect Claude Code
